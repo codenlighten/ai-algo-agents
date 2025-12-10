@@ -1,0 +1,8 @@
+{
+  "train_size": 1801350,
+  "val_size": 3760,
+  "test_size": 4358,
+  "total_tokens_train": 101425671,
+  "total_tokens_val": 213886,
+  "total_tokens_test": 241211
+}

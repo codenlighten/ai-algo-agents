@@ -151,7 +151,8 @@ def test_basic_functionality():
         import torch
         from models.novel_architectures import DynamicDepthNetwork
         
-        model = DynamicDepthNetwork(10, 20, 5, max_layers=3)
+        # Fix: hidden_dim should match or be compatible with input_dim for residual connections
+        model = DynamicDepthNetwork(input_dim=10, hidden_dim=10, output_dim=5, max_layers=3)
         x = torch.randn(8, 10)
         output = model(x)
         
@@ -167,23 +168,23 @@ def test_basic_functionality():
             datasets=["test"],
             metrics=["accuracy"],
             baselines=["baseline"],
-            expected_improvements={},
+            expected_improvements={"accuracy": "10%"},
             minimal_compute_requirements="1 GPU"
         )
         
-        proposal = ResearchProposalBuilder() \
-            .set_title("Test") \
-            .set_author("Test") \
-            .set_core_concept("Concept") \
-            .set_summary("Summary") \
-            .set_related_work("Work") \
-            .set_novelty("Novel") \
-            .set_implementation("PyTorch", "code") \
-            .set_experimental_setup(setup) \
-            .set_scalability("Good") \
-            .set_engineering_constraints("None") \
-            .set_reasoning_path("Path") \
-            .build()
+        builder = ResearchProposalBuilder()
+        builder.set_title("Test")
+        builder.set_author("Test")
+        builder.set_core_concept("Concept")
+        builder.set_summary("Summary")
+        builder.set_related_work("Work")
+        builder.set_novelty("Novel")
+        builder.set_implementation("PyTorch", "code")
+        builder.set_experimental_setup(setup)
+        builder.set_scalability("Good")
+        builder.set_engineering_constraints("None")
+        builder.set_reasoning_path("Path")
+        proposal = builder.build()
         
         print("  ✓ ResearchProposalBuilder works")
     except Exception as e:

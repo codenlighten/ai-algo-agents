@@ -81,9 +81,17 @@ class ResearchProposal:
     @classmethod
     def from_dict(cls, data: Dict) -> 'ResearchProposal':
         """Create proposal from dictionary"""
-        exp_setup_data = data.pop('experimental_setup')
-        exp_setup = ExperimentalSetup(**exp_setup_data)
-        return cls(**data, experimental_setup=exp_setup)
+        # Make a copy to avoid modifying the original
+        data_copy = data.copy()
+        exp_setup_data = data_copy.pop('experimental_setup')
+        
+        # Handle if exp_setup_data is already an ExperimentalSetup instance
+        if isinstance(exp_setup_data, ExperimentalSetup):
+            exp_setup = exp_setup_data
+        else:
+            exp_setup = ExperimentalSetup(**exp_setup_data)
+        
+        return cls(**data_copy, experimental_setup=exp_setup)
     
     @classmethod
     def load(cls, filepath: str) -> 'ResearchProposal':
