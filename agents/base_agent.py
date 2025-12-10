@@ -139,7 +139,7 @@ As the Architecture Design specialist:
         })
         
         response = self.client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": self.system_prompt},
                 *self.conversation_history
