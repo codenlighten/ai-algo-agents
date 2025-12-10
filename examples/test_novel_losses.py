@@ -3,6 +3,10 @@ Example: Testing novel loss functions
 """
 import torch
 import torch.nn as nn
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
+
 from loss_functions.novel_losses import (
     ConfidencePenalizedCrossEntropy,
     FocalLoss,
@@ -14,6 +18,7 @@ from experiments.experiment_framework import (
     ExperimentConfig,
     MinimalBenchmark
 )
+from utils.device_manager import get_device_manager
 
 
 def run_loss_function_comparison():
@@ -23,11 +28,15 @@ def run_loss_function_comparison():
     print("LOSS FUNCTION COMPARISON EXPERIMENT")
     print("="*80)
     
+    # Initialize device manager
+    device_mgr = get_device_manager(verbose=True)
+    device_mgr.optimize_for_training()
+    
     # Get dataset
     dataset = MinimalBenchmark.simple_mnist_task()
     
     # Create experiment runner
-    runner = ExperimentRunner()
+    runner = ExperimentRunner(device_manager=device_mgr)
     
     # Define experiments
     experiments = [

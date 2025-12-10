@@ -9,6 +9,9 @@ from dataclasses import dataclass
 import time
 import json
 from pathlib import Path
+import sys
+sys.path.append(str(Path(__file__).parent.parent))
+from utils.device_manager import DeviceManager, get_device_manager
 
 
 @dataclass
@@ -21,9 +24,10 @@ class ExperimentConfig:
     dataset: Dataset
     batch_size: int = 32
     num_epochs: int = 10
-    device: str = "cuda" if torch.cuda.is_available() else "cpu"
+    device: Optional[str] = None  # Auto-detect if None
     log_interval: int = 100
     seed: int = 42
+    use_mixed_precision: bool = False  # Enable FP16 training if supported
 
 
 @dataclass
@@ -54,19 +58,38 @@ class ExperimentResult:
 class ExperimentRunner:
     """Run and compare experiments"""
     
-    def __init__(self, save_dir: str = "experiments/results"):
+    def __init__(self, save_dir: str = "experiments/results", device_manager: Optional[DeviceManager] = None):
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.results: Dict[str, ExperimentResult] = {}
-    
+        
     def run_experiment(self, config: ExperimentConfig) -> ExperimentResult:
         """Run a single experiment"""
         print(f"\n🔬 Running experiment: {config.name}")
         
         # Set seed for reproducibility
         torch.manual_seed(config.seed)
+        if self.device.type == 'cuda':
+            torch.cuda.manual_seed_all(config.seed)
         
-        # Setup
+        # Setup device (use config device if specified, otherwise use manager's device)
+        device = torch.device(config.device) if config.device else self.device
+        
+        # Initialize model and move to device
+        model = config.model_fn()
+        model = self.device_manager.to_device(model)
+        
+        optimizer = config.optimizer_fn(model.parameters())
+        criterion = config.loss_fn()
+        
+        # Setup mixed precision training if enabled and supported
+        scaler = None
+        if config.use_mixed_precision and device.type == 'cuda':
+            if self.device_manager.enable_mixed_precision():
+                scaler = torch.cuda.amp.GradScaler()
+                print(f"✅ Mixed precision (FP16) training enabled")
+            else:
+                print(f"⚠️  Mixed precision not supported on this GPU")
         device = torch.device(config.device)
         model = config.model_fn().to(device)
         optimizer = config.optimizer_fn(model.parameters())
@@ -95,11 +118,23 @@ class ExperimentRunner:
             for batch_idx, (data, target) in enumerate(train_loader):
                 data, target = data.to(device), target.to(device)
                 
-                optimizer.zero_grad()
-                output = model(data)
-                loss = criterion(output, target)
-                loss.backward()
-                optimizer.step()
+                # Mixed precision training
+                if scaler is not None:
+                    with torch.cuda.amp.autocast():
+                        output = model(data)
+                        loss = criterion(output, target)
+                    
+                    optimizer.zero_grad()
+                    scaler.scale(loss).backward()
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    # Standard training
+                    optimizer.zero_grad()
+                    output = model(data)
+                    loss = criterion(output, target)
+                    loss.backward()
+                    optimizer.step()
                 
                 total_loss += loss.item()
                 pred = output.argmax(dim=1, keepdim=True)
@@ -123,9 +158,12 @@ class ExperimentRunner:
         total_time = time.time() - start_time
         
         # Memory usage
-        if torch.cuda.is_available():
+        if device.type == 'cuda':
             memory_mb = torch.cuda.max_memory_allocated(device) / 1024 / 1024
             torch.cuda.reset_peak_memory_stats(device)
+            
+            # Print memory stats
+            self.device_manager.print_memory_stats()
         else:
             memory_mb = 0
         

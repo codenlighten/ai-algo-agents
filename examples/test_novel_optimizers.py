@@ -5,6 +5,10 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
+
 from optimizers.novel_optimizers import (
     SecondOrderMomentumOptimizer,
     LookAheadWrapper,
@@ -15,6 +19,7 @@ from experiments.experiment_framework import (
     ExperimentConfig,
     MinimalBenchmark
 )
+from utils.device_manager import get_device_manager
 
 
 def simple_cnn():
@@ -40,11 +45,15 @@ def run_optimizer_comparison():
     print("OPTIMIZER COMPARISON EXPERIMENT")
     print("="*80)
     
+    # Initialize device manager
+    device_mgr = get_device_manager(verbose=True)
+    device_mgr.optimize_for_training()
+    
     # Get dataset
     dataset = MinimalBenchmark.simple_mnist_task()
     
     # Create experiment runner
-    runner = ExperimentRunner()
+    runner = ExperimentRunner(device_manager=device_mgr)
     
     # Define experiments
     experiments = [
@@ -80,7 +89,8 @@ def run_optimizer_comparison():
             loss_fn=nn.CrossEntropyLoss,
             dataset=dataset,
             batch_size=128,
-            num_epochs=10
+            num_epochs=10,
+            use_mixed_precision=True  # Enable FP16 if supported
         ),
         
         # Novel: LookAhead + Adam
@@ -95,7 +105,8 @@ def run_optimizer_comparison():
             loss_fn=nn.CrossEntropyLoss,
             dataset=dataset,
             batch_size=128,
-            num_epochs=10
+            num_epochs=10,
+            use_mixed_precision=True
         ),
         
         # Novel: Adaptive Gradient Clipping
@@ -111,7 +122,8 @@ def run_optimizer_comparison():
             loss_fn=nn.CrossEntropyLoss,
             dataset=dataset,
             batch_size=128,
-            num_epochs=10
+            num_epochs=10,
+            use_mixed_precision=True
         )
     ]
     

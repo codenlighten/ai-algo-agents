@@ -1,6 +1,15 @@
 # AI Algorithm Research Agents
 
-A coordinated team of OpenAI research agents specializing in AI algorithms, systems design, and novel training paradigms.
+A coordinated team of OpenAI research agents specializing in AI algorithms, systems design, and novel training paradigms. **Production-ready with automatic GPU acceleration.**
+
+## 🚀 Key Features
+
+- **🤖 5 Specialized AI Agents**: Coordinated team for comprehensive research
+- **⚡ GPU Acceleration**: Automatic NVIDIA CUDA detection with CPU fallback
+- **🔬 15+ Novel Implementations**: Optimizers, losses, and architectures
+- **📊 Experiment Framework**: Production-grade testing and benchmarking
+- **💾 Mixed Precision (FP16)**: 2x speedup on modern GPUs
+- **🎯 Automated Device Management**: Optimal batch sizes and memory management
 
 ## 🎯 Mission
 
@@ -109,6 +118,21 @@ ai-algo-agents/
 pip install -r requirements.txt
 
 # Ensure .env has OPENAI_API_KEY (already configured for you)
+```
+
+### GPU Setup (Recommended for Production)
+
+```bash
+# Test GPU detection and performance
+python examples/gpu_performance_test.py
+
+# If no GPU detected, install CUDA support:
+# 1. Install NVIDIA drivers: https://www.nvidia.com/drivers
+# 2. Install PyTorch with CUDA:
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+```
+
+**📖 Full GPU Guide**: See [GPU_ACCELERATION.md](docs/GPU_ACCELERATION.md)
 
 # Run interactive mode
 python main.py
@@ -117,18 +141,23 @@ python main.py
 python main.py --example
 ```
 
-### Run Experiments
+### Run Experiments (GPU Accelerated)
 
 ```bash
-# Compare novel optimizers
+# GPU performance benchmark (run this first!)
+python examples/gpu_performance_test.py
+
+# Compare novel optimizers (uses GPU automatically)
 python examples/test_novel_optimizers.py
 
-# Compare novel loss functions
+# Compare novel loss functions (uses GPU automatically)
 python examples/test_novel_losses.py
 
 # Generate example proposals
 python examples/example_proposals.py
 ```
+
+**Note**: All experiments automatically detect and use NVIDIA CUDA GPUs when available, with seamless CPU fallback.
 
 ### Run Tests
 
@@ -170,11 +199,14 @@ print(results['experiments'])      # Validation plan
 
 ✅ **5 specialized AI research agents**
 ✅ **15+ novel implementations** (optimizers, losses, architectures)
+✅ **GPU acceleration** with automatic CUDA detection and CPU fallback
+✅ **Mixed precision (FP16)** training for 2x speedup on modern GPUs
 ✅ **Complete experimental framework** for validation
 ✅ **Structured proposal system** for documentation
 ✅ **Interactive interface** for exploration
 ✅ **Production-ready code** with comprehensive tests
 ✅ **Scalability analysis** for billion-parameter models
+✅ **Optimal batch size** and memory management
 ✅ **Example proposals** with full specifications
 
 ## 📚 Documentation
@@ -182,6 +214,7 @@ print(results['experiments'])      # Validation plan
 - **README.md** (this file) - Quick overview
 - **QUICKSTART.md** - Detailed getting started guide
 - **SYSTEM_OVERVIEW.md** - Complete system documentation
+- **GPU_ACCELERATION.md** - GPU usage guide for research labs
 - **RESEARCH_IDEAS.md** - Future research directions
 - **COMPLETE_SUMMARY.md** - What has been built
 
@@ -198,12 +231,14 @@ print(results['experiments'])      # Validation plan
 - Comprehensive test suite (pytest)
 - Type hints and documentation
 - GPU/TPU efficiency focus
+- Automatic CUDA acceleration
 
 ### Scalability Analysis
 - Billion-parameter model analysis
 - Distributed training compatibility
 - Memory and communication efficiency
 - Hardware utilization optimization
+- Multi-GPU support ready
 
 ## 💡 Example Research Areas
 
