@@ -63,9 +63,13 @@ class ExperimentRunner:
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.results: Dict[str, ExperimentResult] = {}
         
+        # Initialize device manager
+        self.device_manager = device_manager or get_device_manager(verbose=True)
+        self.device = self.device_manager.get_device()
+        
     def run_experiment(self, config: ExperimentConfig) -> ExperimentResult:
         """Run a single experiment"""
-        print(f"\n🔬 Running experiment: {config.name}")
+        print(f"\nRunning experiment: {config.name}")
         
         # Set seed for reproducibility
         torch.manual_seed(config.seed)
@@ -87,13 +91,9 @@ class ExperimentRunner:
         if config.use_mixed_precision and device.type == 'cuda':
             if self.device_manager.enable_mixed_precision():
                 scaler = torch.cuda.amp.GradScaler()
-                print(f"✅ Mixed precision (FP16) training enabled")
+                print(f"Mixed precision (FP16) training enabled")
             else:
-                print(f"⚠️  Mixed precision not supported on this GPU")
-        device = torch.device(config.device)
-        model = config.model_fn().to(device)
-        optimizer = config.optimizer_fn(model.parameters())
-        criterion = config.loss_fn()
+                print(f"Mixed precision not supported on this GPU")
         
         # Data loader
         train_loader = DataLoader(

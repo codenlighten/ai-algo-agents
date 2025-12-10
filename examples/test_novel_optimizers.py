@@ -160,8 +160,8 @@ if __name__ == "__main__":
     
     try:
         results = run_optimizer_comparison()
-        print("\n✅ Experiment completed successfully!")
+        print("\nExperiment completed successfully!")
     except Exception as e:
-        print(f"\n❌ Experiment failed: {e}")
+        print(f"\nExperiment failed: {e}")
         print("\nMake sure you have installed all requirements:")
         print("  pip install torch torchvision")

@@ -133,20 +133,20 @@ class DeviceManager:
     def _print_device_info(self):
         """Print device information"""
         print("\n" + "="*80)
-        print("🔧 DEVICE CONFIGURATION")
+        print("DEVICE CONFIGURATION")
         print("="*80)
         print(str(self.device_info))
         
         if self.device.type == 'cuda':
-            print(f"\n✅ PyTorch CUDA is available and enabled")
+            print(f"\nPyTorch CUDA is available and enabled")
             print(f"   Using device: {self.device}")
             
             # Performance tips
             if torch.cuda.device_count() > 1:
-                print(f"\n💡 Multi-GPU detected ({torch.cuda.device_count()} GPUs)")
+                print(f"\nMulti-GPU detected ({torch.cuda.device_count()} GPUs)")
                 print(f"   Consider using DataParallel or DistributedDataParallel")
         else:
-            print(f"\n⚠️  Running on CPU (CUDA not available)")
+            print(f"\nRunning on CPU (CUDA not available)")
             print(f"   For faster training, ensure NVIDIA drivers and CUDA are installed")
         
         print("="*80 + "\n")
@@ -190,7 +190,7 @@ class DeviceManager:
         """Print current memory usage"""
         if self.device.type == 'cuda':
             stats = self.get_memory_stats()
-            print(f"\n📊 GPU Memory Usage:")
+            print(f"\nGPU Memory Usage:")
             print(f"   Allocated: {stats['allocated_gb']:.2f} GB")
             print(f"   Reserved:  {stats['reserved_gb']:.2f} GB")
             print(f"   Peak:      {stats['max_allocated_gb']:.2f} GB\n")
@@ -224,7 +224,7 @@ class DeviceManager:
             supports_fp16 = compute_capability[0] >= 7  # Volta and newer
             
             if self.verbose and supports_fp16:
-                print(f"✅ Mixed Precision (FP16) training supported")
+                print(f"Mixed Precision (FP16) training supported")
                 print(f"   GPU Compute Capability: {compute_capability[0]}.{compute_capability[1]}")
             
             return supports_fp16
@@ -276,7 +276,7 @@ class DeviceManager:
             batch_size = 2 ** int(torch.log2(torch.tensor(estimated_batch_size)))
             
             if self.verbose:
-                print(f"💡 Recommended batch size: {batch_size}")
+                print(f"Recommended batch size: {batch_size}")
             
             return max(1, batch_size)
             
