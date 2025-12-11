@@ -1,16 +1,21 @@
 # sparsae_wikitext.py - SparsAE with Real WikiText-103 Data
+print(">>> [STARTUP] Entered sparsae_wikitext.py", flush=True)
+
 import math
 import copy
 import argparse
 from typing import Dict, List, Tuple, Optional
 from pathlib import Path
 
+print(">>> [STARTUP] Importing PyTorch...", flush=True)
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
+print(">>> [STARTUP] Importing datasets and transformers...", flush=True)
 from datasets import load_dataset
 from transformers import GPT2Tokenizer
+print(">>> [STARTUP] All imports complete", flush=True)
 
 
 ####################################
@@ -22,14 +27,16 @@ class WikiTextDataset(Dataset):
     
     def __init__(self, split: str = "train", max_length: int = 512, cache_dir: str = "./data"):
         self.max_length = max_length
+        print(f">>> [DATASET] Initializing GPT2 tokenizer...", flush=True)
         self.tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
         self.tokenizer.pad_token = self.tokenizer.eos_token
         
-        print(f"Loading WikiText-103 {split} split...")
+        print(f">>> [DATASET] Loading WikiText-103 {split} split (this may take 1-2 minutes on first run)...", flush=True)
         dataset = load_dataset("wikitext", "wikitext-103-v1", split=split, cache_dir=cache_dir)
+        print(f">>> [DATASET] Loaded {len(dataset)} raw documents", flush=True)
         
         # Tokenize and chunk
-        print("Tokenizing and chunking...")
+        print(f">>> [DATASET] Tokenizing and chunking (this will take a few minutes)...", flush=True)
         self.examples = []
         
         for item in dataset:
@@ -45,7 +52,7 @@ class WikiTextDataset(Dataset):
                 if len(chunk) == max_length:
                     self.examples.append(chunk)
         
-        print(f"Created {len(self.examples)} examples from WikiText-103 {split}")
+        print(f">>> [DATASET] Created {len(self.examples)} examples from WikiText-103 {split}", flush=True)
     
     def __len__(self):
         return len(self.examples)
