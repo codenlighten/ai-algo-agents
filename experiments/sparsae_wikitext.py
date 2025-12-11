@@ -23,7 +23,7 @@ print(">>> [STARTUP] All imports complete", flush=True)
 ####################################
 
 class WikiTextDataset(Dataset):
-    """WikiText-103 dataset with GPT-2 tokenization (memory-optimized)"""
+    """WikiText-103 dataset with GPT-2 tokenization (memory-optimized with streaming)"""
     
     def __init__(self, split: str = "train", max_length: int = 512, cache_dir: str = "./data", max_examples: int = None):
         self.max_length = max_length
@@ -31,47 +31,62 @@ class WikiTextDataset(Dataset):
         self.tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
         self.tokenizer.pad_token = self.tokenizer.eos_token
         
-        print(f">>> [DATASET] Loading WikiText-103 {split} split...", flush=True)
+        print(f">>> [DATASET] Loading WikiText-103 {split} split in STREAMING mode...", flush=True)
         if max_examples:
-            print(f">>> [DATASET] Memory-optimized mode: Will stop at {max_examples} examples", flush=True)
+            print(f">>> [DATASET] Will create {max_examples} examples maximum", flush=True)
         
-        # Load dataset - this downloads but doesn't fully load into memory yet
-        dataset = load_dataset("wikitext", "wikitext-103-v1", split=split, cache_dir=cache_dir)
-        print(f">>> [DATASET] Dataset ready, starting tokenization...", flush=True)
+        # Use streaming=True to avoid loading entire dataset into memory
+        dataset = load_dataset("wikitext", "wikitext-103-v1", split=split, cache_dir=cache_dir, streaming=True)
+        print(f">>> [DATASET] Dataset loaded (streaming mode), starting tokenization...", flush=True)
         
-        # Tokenize and chunk (memory-optimized with early exit)
+        # Tokenize and chunk with early exit
         self.examples = []
         doc_count = 0
+        max_docs_to_process = 10000 if max_examples else None  # Safety limit
         
-        for idx, item in enumerate(dataset):
-            # Early exit check BEFORE processing more data
-            if max_examples and len(self.examples) >= max_examples:
-                print(f">>> [DATASET] Reached max_examples limit of {max_examples} (processed {doc_count} documents)", flush=True)
-                break
-            
-            text = item["text"].strip()
-            if len(text) < 50:  # Skip very short texts
-                continue
-            
-            doc_count += 1
-            
-            # Show progress every 1000 documents
-            if doc_count % 1000 == 0:
-                print(f">>> [DATASET] Processed {doc_count} documents, created {len(self.examples)} examples...", flush=True)
-            
-            tokens = self.tokenizer.encode(text, add_special_tokens=True)
-            
-            # Chunk into max_length sequences
-            for i in range(0, len(tokens) - max_length, max_length // 2):  # 50% overlap
-                chunk = tokens[i:i + max_length]
-                if len(chunk) == max_length:
-                    self.examples.append(chunk)
-                    
-                    # Check limit after each chunk too
-                    if max_examples and len(self.examples) >= max_examples:
-                        break
+        try:
+            for idx, item in enumerate(dataset):
+                # Early exit checks
+                if max_examples and len(self.examples) >= max_examples:
+                    print(f">>> [DATASET] ✅ Reached target of {max_examples} examples from {doc_count} documents", flush=True)
+                    break
+                
+                if max_docs_to_process and doc_count >= max_docs_to_process:
+                    print(f">>> [DATASET] ✅ Processed {doc_count} documents, created {len(self.examples)} examples", flush=True)
+                    break
+                
+                text = item["text"].strip()
+                if len(text) < 50:  # Skip very short texts
+                    continue
+                
+                doc_count += 1
+                
+                # Show progress
+                if doc_count % 500 == 0:
+                    print(f">>> [DATASET] Processed {doc_count} docs → {len(self.examples)} examples", flush=True)
+                
+                # Tokenize
+                tokens = self.tokenizer.encode(text, add_special_tokens=True, max_length=max_length*3, truncation=True)
+                
+                # Chunk into sequences
+                for i in range(0, len(tokens) - max_length, max_length // 2):
+                    chunk = tokens[i:i + max_length]
+                    if len(chunk) == max_length:
+                        self.examples.append(chunk)
+                        
+                        # Check limit after each chunk
+                        if max_examples and len(self.examples) >= max_examples:
+                            break
+        except Exception as e:
+            print(f">>> [DATASET] ⚠️  Exception during loading: {e}", flush=True)
+            if len(self.examples) < 100:
+                raise
+            print(f">>> [DATASET] Continuing with {len(self.examples)} examples collected so far", flush=True)
         
-        print(f">>> [DATASET] ✅ Created {len(self.examples)} examples from {doc_count} documents", flush=True)
+        if len(self.examples) == 0:
+            raise ValueError("No examples created! Check dataset and max_examples settings")
+        
+        print(f">>> [DATASET] ✅ Final: {len(self.examples)} examples from {doc_count} documents", flush=True)
     
     def __len__(self):
         return len(self.examples)
