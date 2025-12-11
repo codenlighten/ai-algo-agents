@@ -29,6 +29,17 @@ This folder contains everything needed to run SparsAE training on Google Colab.
 - Alternative upload methods
 - **Note**: Our repo is now public, so this is optional
 
+### 5. **BUFFERING_FIX.md** - Technical Details ⭐ NEW
+- Explains the "silent hang" issue and how we fixed it
+- Python `-u` flag and `flush=True` usage
+- Useful for understanding output buffering in Colab
+
+### 6. **TROUBLESHOOTING_CELLS.md** - Diagnostic Code ⭐ NEW
+- Ready-to-use cells for testing and debugging
+- Quick test, GPU monitoring, checkpoint viewing
+- Resume from checkpoint, force stop training
+- Copy-paste into your notebook as needed
+
 ---
 
 ## 🎯 How to Use
