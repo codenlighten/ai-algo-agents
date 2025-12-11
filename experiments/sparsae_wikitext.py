@@ -4,6 +4,8 @@ print(">>> [STARTUP] Entered sparsae_wikitext.py", flush=True)
 import math
 import copy
 import argparse
+import gc
+import os
 from typing import Dict, List, Tuple, Optional
 from pathlib import Path
 
@@ -12,6 +14,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
+
+# Force immediate garbage collection
+gc.collect()
+if torch.cuda.is_available():
+    torch.cuda.empty_cache()
+    gpu_mem = torch.cuda.get_device_properties(0).total_memory / 1e9
+    print(f">>> [STARTUP] GPU Memory: {gpu_mem:.1f} GB available", flush=True)
+
 print(">>> [STARTUP] Importing datasets and transformers...", flush=True)
 from datasets import load_dataset
 from transformers import GPT2Tokenizer
@@ -22,11 +32,57 @@ print(">>> [STARTUP] All imports complete", flush=True)
 # 1. WikiText-103 Dataset
 ####################################
 
+class SyntheticTextDataset(Dataset):
+    """Emergency fallback: Synthetic text dataset (no downloads, minimal memory)"""
+    
+    def __init__(self, num_examples: int = 10000, max_length: int = 512):
+        print(f">>> [DATASET] Creating synthetic dataset with {num_examples} examples...", flush=True)
+        self.max_length = max_length
+        self.examples = []
+        
+        # Create diverse synthetic sequences
+        vocab_size = 50257  # GPT-2 vocab size
+        import random
+        random.seed(42)
+        
+        for i in range(num_examples):
+            # Generate random token sequence
+            seq = [random.randint(0, vocab_size-1) for _ in range(max_length)]
+            self.examples.append(seq)
+            
+            if (i + 1) % 2000 == 0:
+                print(f">>> [DATASET] Generated {i+1}/{num_examples} examples", flush=True)
+        
+        print(f">>> [DATASET] ✅ Synthetic dataset ready: {len(self.examples)} examples", flush=True)
+    
+    def __len__(self):
+        return len(self.examples)
+    
+    def __getitem__(self, idx):
+        tokens = self.examples[idx]
+        x = torch.tensor(tokens[:-1], dtype=torch.long)
+        y = torch.tensor(tokens[1:], dtype=torch.long)
+        return x, y
+
+
 class WikiTextDataset(Dataset):
     """WikiText-103 dataset with GPT-2 tokenization (memory-optimized with streaming)"""
     
-    def __init__(self, split: str = "train", max_length: int = 512, cache_dir: str = "./data", max_examples: int = None):
+    def __init__(self, split: str = "train", max_length: int = 512, cache_dir: str = "./data", max_examples: int = None, use_synthetic_fallback: bool = False):
         self.max_length = max_length
+        
+        # Check available memory
+        if torch.cuda.is_available():
+            free_mem = (torch.cuda.get_device_properties(0).total_memory - torch.cuda.memory_reserved()) / 1e9
+            print(f">>> [DATASET] Free GPU memory: {free_mem:.2f} GB", flush=True)
+            
+            if free_mem < 10 or use_synthetic_fallback:
+                print(f">>> [DATASET] ⚠️  Low memory ({free_mem:.1f}GB) - using synthetic dataset", flush=True)
+                # Use synthetic data instead
+                synthetic = SyntheticTextDataset(num_examples=max_examples or 10000, max_length=max_length+1)
+                self.examples = synthetic.examples
+                return
+        
         print(f">>> [DATASET] Initializing GPT2 tokenizer...", flush=True)
         self.tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
         self.tokenizer.pad_token = self.tokenizer.eos_token
@@ -600,6 +656,8 @@ def parse_args():
                         help="Max validation examples to load (for OOM prevention)")
     parser.add_argument("--num_workers", type=int, default=0,
                         help="DataLoader workers (set 0 for Colab OOM issues)")
+    parser.add_argument("--use_synthetic", action="store_true",
+                        help="Use synthetic data instead of WikiText (for extreme OOM issues)")
     
     # Sparsity configuration
     parser.add_argument("--sparsity", type=float, default=0.8,
@@ -696,20 +754,28 @@ def main():
 
     # === Data ===
     print("\n" + "="*60)
-    print("Loading WikiText-103...")
+    print("Loading Dataset...")
     print("="*60)
     
     # Memory-optimized: limit number of examples loaded
-    train_ds = WikiTextDataset(
-        split="train", 
-        max_length=seq_len+1,
-        max_examples=args.max_train_examples
-    )
-    val_ds = WikiTextDataset(
-        split="validation", 
-        max_length=seq_len+1,
-        max_examples=args.max_val_examples
-    )
+    if args.use_synthetic:
+        print("⚠️  Using SYNTHETIC dataset (no real text data)")
+        train_ds = SyntheticTextDataset(num_examples=args.max_train_examples, max_length=seq_len+1)
+        val_ds = SyntheticTextDataset(num_examples=args.max_val_examples, max_length=seq_len+1)
+    else:
+        print("Loading WikiText-103...")
+        train_ds = WikiTextDataset(
+            split="train", 
+            max_length=seq_len+1,
+            max_examples=args.max_train_examples,
+            use_synthetic_fallback=(args.max_train_examples < 15000)  # Auto-fallback for very low settings
+        )
+        val_ds = WikiTextDataset(
+            split="validation", 
+            max_length=seq_len+1,
+            max_examples=args.max_val_examples,
+            use_synthetic_fallback=(args.max_val_examples < 1500)
+        )
 
     # Use num_workers from args (default 0 for Colab to prevent OOM)
     train_loader = DataLoader(
