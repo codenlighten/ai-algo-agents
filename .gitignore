@@ -40,9 +40,13 @@ ENV/
 # Data
 data/downloads/
 data/cache/
+data/wikitext/
+data/mnist/
 *.pkl
 *.pt
 *.pth
+*.arrow
+*.parquet
 
 # Experiments
 experiments/results/

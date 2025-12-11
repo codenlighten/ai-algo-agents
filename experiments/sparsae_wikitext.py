@@ -23,23 +23,23 @@ print(">>> [STARTUP] All imports complete", flush=True)
 ####################################
 
 class WikiTextDataset(Dataset):
-    """WikiText-103 dataset with GPT-2 tokenization"""
+    """WikiText-103 dataset with GPT-2 tokenization (memory-optimized)"""
     
-    def __init__(self, split: str = "train", max_length: int = 512, cache_dir: str = "./data"):
+    def __init__(self, split: str = "train", max_length: int = 512, cache_dir: str = "./data", max_examples: int = None):
         self.max_length = max_length
         print(f">>> [DATASET] Initializing GPT2 tokenizer...", flush=True)
         self.tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
         self.tokenizer.pad_token = self.tokenizer.eos_token
         
         print(f">>> [DATASET] Loading WikiText-103 {split} split (this may take 1-2 minutes on first run)...", flush=True)
-        dataset = load_dataset("wikitext", "wikitext-103-v1", split=split, cache_dir=cache_dir)
+        dataset = load_dataset("wikitext", "wikitext-103-v1", split=split, cache_dir=cache_dir, streaming=False)
         print(f">>> [DATASET] Loaded {len(dataset)} raw documents", flush=True)
         
-        # Tokenize and chunk
+        # Tokenize and chunk (memory-optimized with limit)
         print(f">>> [DATASET] Tokenizing and chunking (this will take a few minutes)...", flush=True)
         self.examples = []
         
-        for item in dataset:
+        for idx, item in enumerate(dataset):
             text = item["text"].strip()
             if len(text) < 50:  # Skip very short texts
                 continue
@@ -51,6 +51,12 @@ class WikiTextDataset(Dataset):
                 chunk = tokens[i:i + max_length]
                 if len(chunk) == max_length:
                     self.examples.append(chunk)
+                    
+                    # Early exit if we hit max_examples limit (for memory constraints)
+                    if max_examples and len(self.examples) >= max_examples:
+                        print(f">>> [DATASET] Reached max_examples limit of {max_examples}", flush=True)
+                        print(f">>> [DATASET] Created {len(self.examples)} examples from WikiText-103 {split}", flush=True)
+                        return
         
         print(f">>> [DATASET] Created {len(self.examples)} examples from WikiText-103 {split}", flush=True)
     
@@ -559,6 +565,14 @@ def parse_args():
     parser.add_argument("--weight_decay", type=float, default=0.1,
                         help="Weight decay")
     
+    # Memory optimization
+    parser.add_argument("--max_train_examples", type=int, default=50000,
+                        help="Max training examples to load (for OOM prevention)")
+    parser.add_argument("--max_val_examples", type=int, default=5000,
+                        help="Max validation examples to load (for OOM prevention)")
+    parser.add_argument("--num_workers", type=int, default=0,
+                        help="DataLoader workers (set 0 for Colab OOM issues)")
+    
     # Sparsity configuration
     parser.add_argument("--sparsity", type=float, default=0.8,
                         help="Global sparsity ratio (0.0-1.0)")
@@ -657,11 +671,33 @@ def main():
     print("Loading WikiText-103...")
     print("="*60)
     
-    train_ds = WikiTextDataset(split="train", max_length=seq_len+1)
-    val_ds = WikiTextDataset(split="validation", max_length=seq_len+1)
+    # Memory-optimized: limit number of examples loaded
+    train_ds = WikiTextDataset(
+        split="train", 
+        max_length=seq_len+1,
+        max_examples=args.max_train_examples
+    )
+    val_ds = WikiTextDataset(
+        split="validation", 
+        max_length=seq_len+1,
+        max_examples=args.max_val_examples
+    )
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=2, pin_memory=True)
-    val_loader = DataLoader(val_ds, batch_size=16, shuffle=True, num_workers=2, pin_memory=True)
+    # Use num_workers from args (default 0 for Colab to prevent OOM)
+    train_loader = DataLoader(
+        train_ds, 
+        batch_size=batch_size, 
+        shuffle=True, 
+        num_workers=args.num_workers, 
+        pin_memory=(args.num_workers > 0)
+    )
+    val_loader = DataLoader(
+        val_ds, 
+        batch_size=min(16, batch_size), 
+        shuffle=True, 
+        num_workers=args.num_workers, 
+        pin_memory=(args.num_workers > 0)
+    )
 
     # micro-batch for ES proxy
     micro_batch = next(iter(val_loader))

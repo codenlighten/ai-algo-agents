@@ -1,5 +1,7 @@
 # 🚀 Quick Start: Your First Colab Run
 
+## ⚠️ Got Exit Code -9? See [QUICK_FIX_OOM.md](QUICK_FIX_OOM.md)
+
 ## Step 1: Open Colab (2 minutes)
 
 1. Click this link: https://colab.research.google.com/github/codenlighten/ai-algo-agents/blob/main/colab_setup.ipynb
@@ -19,6 +21,7 @@ Click the "play" button on these cells in order:
 3. ✅ **Install deps** - Installs PyTorch, transformers
 4. ✅ **Verify** - Confirms everything works
 5. ✅ **Config** - Auto-detects optimal settings
+5.5. 🔍 **Memory Check** - Run this if you had OOM errors before
 6. ⏭️ **Mount Drive** - Optional, for saving checkpoints
 
 ---
@@ -27,7 +30,9 @@ Click the "play" button on these cells in order:
 
 1. Run the **Training** cell
 2. Watch the output for progress
-3. Expected time: 1.5-3 hours for 125M model
+3. Expected time: 1.5-3 hours for tiny/small model
+
+**If training fails with "Exit code -9"**: This means Out of Memory (OOM). See [QUICK_FIX_OOM.md](QUICK_FIX_OOM.md) for 30-second fix.
 
 ---
 
@@ -41,7 +46,7 @@ Open new cell and run:
 Should show:
 - GPU Util: 95-100% ✅
 - Temp: 60-75°C ✅ (much cooler than your local!)
-- Memory: 6-8GB used ✅
+- Memory: 3-8GB used ✅ (should NOT be at 100%)
 
 ---
 
