@@ -31,18 +31,33 @@ class WikiTextDataset(Dataset):
         self.tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
         self.tokenizer.pad_token = self.tokenizer.eos_token
         
-        print(f">>> [DATASET] Loading WikiText-103 {split} split (this may take 1-2 minutes on first run)...", flush=True)
-        dataset = load_dataset("wikitext", "wikitext-103-v1", split=split, cache_dir=cache_dir, streaming=False)
-        print(f">>> [DATASET] Loaded {len(dataset)} raw documents", flush=True)
+        print(f">>> [DATASET] Loading WikiText-103 {split} split...", flush=True)
+        if max_examples:
+            print(f">>> [DATASET] Memory-optimized mode: Will stop at {max_examples} examples", flush=True)
         
-        # Tokenize and chunk (memory-optimized with limit)
-        print(f">>> [DATASET] Tokenizing and chunking (this will take a few minutes)...", flush=True)
+        # Load dataset - this downloads but doesn't fully load into memory yet
+        dataset = load_dataset("wikitext", "wikitext-103-v1", split=split, cache_dir=cache_dir)
+        print(f">>> [DATASET] Dataset ready, starting tokenization...", flush=True)
+        
+        # Tokenize and chunk (memory-optimized with early exit)
         self.examples = []
+        doc_count = 0
         
         for idx, item in enumerate(dataset):
+            # Early exit check BEFORE processing more data
+            if max_examples and len(self.examples) >= max_examples:
+                print(f">>> [DATASET] Reached max_examples limit of {max_examples} (processed {doc_count} documents)", flush=True)
+                break
+            
             text = item["text"].strip()
             if len(text) < 50:  # Skip very short texts
                 continue
+            
+            doc_count += 1
+            
+            # Show progress every 1000 documents
+            if doc_count % 1000 == 0:
+                print(f">>> [DATASET] Processed {doc_count} documents, created {len(self.examples)} examples...", flush=True)
             
             tokens = self.tokenizer.encode(text, add_special_tokens=True)
             
@@ -52,13 +67,11 @@ class WikiTextDataset(Dataset):
                 if len(chunk) == max_length:
                     self.examples.append(chunk)
                     
-                    # Early exit if we hit max_examples limit (for memory constraints)
+                    # Check limit after each chunk too
                     if max_examples and len(self.examples) >= max_examples:
-                        print(f">>> [DATASET] Reached max_examples limit of {max_examples}", flush=True)
-                        print(f">>> [DATASET] Created {len(self.examples)} examples from WikiText-103 {split}", flush=True)
-                        return
+                        break
         
-        print(f">>> [DATASET] Created {len(self.examples)} examples from WikiText-103 {split}", flush=True)
+        print(f">>> [DATASET] ✅ Created {len(self.examples)} examples from {doc_count} documents", flush=True)
     
     def __len__(self):
         return len(self.examples)

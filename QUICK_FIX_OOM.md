@@ -15,8 +15,8 @@ Find this in Cell 5 and change:
 ```python
 CONFIG = {
     "model_size": "tiny",    # Keep this
-    "batch_size": 2,         # ← Change from 4 to 2
-    "max_train_examples": 10000,  # ← Change from 30000 to 10000
+    "batch_size": 1,         # ← Change to 1 (minimum)
+    "max_train_examples": 5000,  # ← Change to 5000 (very small)
     # ... rest stays same
 }
 ```
